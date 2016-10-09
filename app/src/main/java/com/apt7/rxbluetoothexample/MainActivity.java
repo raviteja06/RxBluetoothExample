@@ -2,27 +2,18 @@ package com.apt7.rxbluetoothexample;
 
 import android.Manifest;
 import android.bluetooth.BluetoothDevice;
-import android.content.DialogInterface;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.os.Bundle;
-import android.text.Html;
-import android.text.method.LinkMovementMethod;
-import android.widget.TextView;
+import android.support.v7.app.AppCompatActivity;
 
 import com.apt7.rxbluetooth.BluetoothObserver;
+import com.apt7.rxpermissions.Permission;
+import com.apt7.rxpermissions.PermissionObservable;
 
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
-
-import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Consumer;
 import io.reactivex.observers.DisposableObserver;
-import io.reactivex.subscribers.DisposableSubscriber;
 
 public class MainActivity extends AppCompatActivity {
     DisposableObserver<BluetoothDevice> disposableObserver;
@@ -39,13 +30,58 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {  // Only ask for these permissions on runtime when running Android 6.0 or higher
-            switch (ContextCompat.checkSelfPermission(getBaseContext(), Manifest.permission.ACCESS_COARSE_LOCATION)) {
-                case PackageManager.PERMISSION_GRANTED:
-                    startBluetooth();
-                    break;
-            }
-        }
+        PermissionObservable.getInstance().checkThePermissionStatus(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                .subscribe(new DisposableObserver<Permission>() {
+                    @Override
+                    public void onNext(Permission permission) {
+                        if (permission.getName().equals(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                            if (permission.getGranted() == Permission.PERMISSION_GRANTED) {
+                                startBluetooth();
+                            } else {
+                                getPermission();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        dispose();
+                    }
+                });
+    }
+
+    private void getPermission() {
+        PermissionObservable.getInstance().request(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                .subscribe(new DisposableObserver<Permission>() {
+
+                    @Override
+                    public void onNext(Permission permission) {
+                        if (permission.getName().equals(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                            if (permission.getGranted() == Permission.PERMISSION_GRANTED) {
+                                startBluetooth();
+                            } else {
+                                finish();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        dispose();
+                    }
+                });
     }
 
     private void startBluetooth() {
@@ -71,7 +107,8 @@ public class MainActivity extends AppCompatActivity {
         disposableObserver = new DisposableObserver<BluetoothDevice>() {
             @Override
             public void onNext(BluetoothDevice bluetoothDevice) {
-                System.out.println(bluetoothDevice.getName());
+                startClassic(bluetoothDevice);
+                dispose();
             }
 
             @Override
@@ -103,4 +140,76 @@ public class MainActivity extends AppCompatActivity {
         });
         BluetoothObserver.getInstance().startBluetoothDiscovery();
     }
+
+    private void startClassic(BluetoothDevice bluetoothDevice) {
+        BluetoothObserver.getInstance().observeConnectToBLE(MainActivity.this, bluetoothDevice, mBluetoothCallback)
+                .subscribe(new DisposableObserver<Boolean>() {
+                    @Override
+                    public void onNext(Boolean value) {
+                        System.out.println("Value : " + value);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
+    }
+
+    BluetoothGattCallback mBluetoothCallback = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            super.onConnectionStateChange(gatt, status, newState);
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            super.onServicesDiscovered(gatt, status);
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicRead(gatt, characteristic, status);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            super.onCharacteristicChanged(gatt, characteristic);
+        }
+
+        @Override
+        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorRead(gatt, descriptor, status);
+        }
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorWrite(gatt, descriptor, status);
+        }
+
+        @Override
+        public void onReliableWriteCompleted(BluetoothGatt gatt, int status) {
+            super.onReliableWriteCompleted(gatt, status);
+        }
+
+        @Override
+        public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+            super.onReadRemoteRssi(gatt, rssi, status);
+        }
+
+        @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+            super.onMtuChanged(gatt, mtu, status);
+        }
+    };
 }
